@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Bachelor Expense Manager</string>
+    <string name="default_server_url">http://10.230.121.108:3001</string>
+</resources>

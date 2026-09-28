@@ -1,0 +1,23 @@
+{
+  "name": "bachelor-expense-manager",
+  "version": "1.0.0",
+  "description": "Modern SplitWise-style expense sharing app for bachelor roommates with full SQLite backend, Rent & Electricity Bill A4 printer, 3-year history archive, and dynamic roommate management.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "tunnel": "npx --yes cloudflared tunnel --url http://localhost:3001"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "splitwise",
+    "expense-manager",
+    "bachelor-flat",
+    "rent-calculator",
+    "electricity-bill"
+  ],
+  "author": "Shivam Kumar",
+  "license": "ISC"
+}

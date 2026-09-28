@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Bachelor Expense Manager - SplitWise for Roommates</title>
+  
+  <!-- PWA & Android Meta Tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BachelorMgr" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="icon" type="image/png" href="/icon-192.png" />
+
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/print-bill.css" />
+  <!-- Chart.js for analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- QR Code generation for roommate mobile Wi-Fi connect -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+  <!-- Top App Header -->
+  <header class="app-header no-print">
+    <div class="nav-container">
+      <a href="#" class="brand-section" onclick="switchTab('dashboard')">
+        <div class="brand-logo-icon">🏠</div>
+        <div>
+          <span class="brand-title">Bachelor Expense Manager</span>
+          <span class="brand-sub">Shivam • Rishu • Raj & Flatmates</span>
+        </div>
+      </a>
+
+      <!-- Month Navigation & Controls -->
+      <div class="header-actions">
+        <!-- Wi-Fi / Local Network Sync Status -->
+        <button class="network-badge" id="btn-network-info" title="Share with roommates over Wi-Fi / Internet">
+          <span class="pulse-dot"></span>
+          <span id="network-badge-text">Roommates Live Sync</span>
+        </button>
+
+        <!-- Month Navigation Pill -->
+        <div class="month-selector-pill">
+          <button class="month-btn-nav" id="btn-prev-month" title="Previous Month">◀</button>
+          <span class="current-month-display" id="display-current-month">Loading...</span>
+          <button class="month-btn-nav" id="btn-next-month" title="Next Month">▶</button>
+          <input type="month" id="month-input-hidden" style="display:none;" />
+          <button class="month-btn-nav" id="btn-calendar-picker" title="Pick specific month">📅</button>
+        </div>
+
+        <!-- Install App as Native Mobile App (PWA/APK) -->
+        <button class="btn btn-primary btn-sm" id="btn-install-pwa" style="display:none;" onclick="triggerPWAInstall()">
+          📲 Install App
+        </button>
+
+        <!-- Dark / Light Mode Toggle -->
+        <button class="btn-icon-circle" id="btn-theme-toggle" title="Toggle Dark/Light Mode">
+          <span id="theme-icon">🌙</span>
+        </button>
+
+        <!-- Roommates & Settings Drawer Toggle -->
+        <button class="btn-icon-circle" id="btn-open-drawer" title="Roommates & Flat Settings">
+          👥
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs Bar -->
+  <nav class="tabs-nav-bar no-print">
+    <div class="tabs-container">
+      <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">
+        📊 Dashboard & Expenses
+      </button>
+      <button class="tab-btn" data-tab="rent-bill" onclick="switchTab('rent-bill')">
+        ⚡ Flat Rent & Electricity Bill <span class="tab-badge">Single A4 Print</span>
+      </button>
+      <button class="tab-btn" data-tab="settle" onclick="switchTab('settle')">
+        🤝 Settle Up & Balances <span class="tab-badge" id="settle-badge">0</span>
+      </button>
+      <button class="tab-btn" data-tab="expenditure" onclick="switchTab('expenditure')">
+        📅 Monthly Expenditure <span class="tab-badge">3-Year Archive</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Application Body -->
+  <main class="main-wrapper no-print">
+
+    <!-- =========================================================
+         TAB 1: DASHBOARD & EXPENSES
+         ========================================================= -->
+    <section id="tab-dashboard" class="tab-content active">
+      <!-- 4 Top Stat Cards -->
+      <div class="metrics-grid">
+        <div class="metric-card primary">
+          <div>
+            <div class="metric-title">Total Monthly Expenses</div>
+            <div class="metric-value" id="stat-total-expense">₹0</div>
+            <div class="metric-sub" id="stat-expense-count">0 transactions this month</div>
+          </div>
+          <div class="metric-icon-box">💳</div>
+        </div>
+
+        <div class="metric-card success">
+          <div>
+            <div class="metric-title">Equal Share / Person</div>
+            <div class="metric-value" id="stat-equal-share">₹0</div>
+            <div class="metric-sub" id="stat-roommate-count">Split across 3 roommates</div>
+          </div>
+          <div class="metric-icon-box">⚖️</div>
+        </div>
+
+        <div class="metric-card warning">
+          <div>
+            <div class="metric-title">Rent & Utility Bills</div>
+            <div class="metric-value" id="stat-rent-utility">₹0</div>
+            <div class="metric-sub">Flat rent, BESCOM power & WiFi</div>
+          </div>
+          <div class="metric-icon-box">⚡</div>
+        </div>
+
+        <div class="metric-card indigo">
+          <div>
+            <div class="metric-title">Daily Average Spend</div>
+            <div class="metric-value" id="stat-daily-avg">₹0</div>
+            <div class="metric-sub" id="stat-days-passed">In current month</div>
+          </div>
+          <div class="metric-icon-box">📈</div>
+        </div>
+      </div>
+
+      <!-- Quick Action Banner -->
+      <div class="action-banner">
+        <div class="action-banner-text">
+          <h3>Flat Expense Overview (<span id="banner-month-label">This Month</span>)</h3>
+          <p>Real-time expense splitting for Shivam, Rishu, Raj, and all bachelors.</p>
+        </div>
+        <div class="action-buttons-group">
+          <button class="btn btn-primary" onclick="openAddExpenseModal()">
+            ➕ Add Expense
+          </button>
+          <button class="btn btn-secondary" onclick="switchTab('rent-bill')">
+            ⚡ Rent & Electricity Bill
+          </button>
+          <button class="btn btn-success" onclick="switchTab('settle')">
+            🤝 Who Owes Whom
+          </button>
+          <button class="btn btn-danger-outline" onclick="confirmResetMonthExpenses()">
+            🗑️ Reset Month
+          </button>
+        </div>
+      </div>
+
+      <!-- Roommates Net Balance Overview Cards -->
+      <div class="roommate-balances-section">
+        <div class="section-header">
+          <h3 class="section-title">👥 Bachelor Roommate Contributions & Balances</h3>
+          <button class="btn btn-secondary btn-sm" onclick="openAddRoommateModal()">+ Add Roommate</button>
+        </div>
+        <div class="roommate-cards-grid" id="roommate-balances-grid">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Visual Analytics Charts (Chart.js) -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <h4 class="chart-card-title">🥧 Category Breakdown</h4>
+            <span class="tab-badge" id="chart-cat-count">Categories</span>
+          </div>
+          <div class="chart-container-wrapper">
+            <canvas id="categoryChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <h4 class="chart-card-title">📊 Roommate Paid vs. Share</h4>
+            <span class="tab-badge">Contribution</span>
+          </div>
+          <div class="chart-container-wrapper">
+            <canvas id="roommateChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expense Table & Search Filter -->
+      <div class="expense-section-card">
+        <div class="table-filter-bar">
+          <div class="filter-controls">
+            <div class="search-input-wrap">
+              <input type="text" id="filter-search" class="input-field" placeholder="🔍 Search expenses, bills, notes..." oninput="debounceFilter()" />
+            </div>
+            <div style="min-width: 170px;">
+              <select id="filter-category" class="select-field" onchange="loadExpenses()">
+                <option value="All">All Categories</option>
+                <option value="Flat Rent">🏠 Flat Rent</option>
+                <option value="Electricity Bill">⚡ Electricity Bill</option>
+                <option value="Water Bill">💧 Water Bill</option>
+                <option value="WiFi/Internet">📶 WiFi/Internet</option>
+                <option value="Grocery">🛒 Grocery</option>
+                <option value="Vegetables">🥦 Vegetables</option>
+                <option value="Milk">🥛 Milk</option>
+                <option value="Gas Cylinder">🔥 Gas Cylinder</option>
+                <option value="Cooking Oil & Spices">🧂 Cooking Oil & Spices</option>
+                <option value="House Cleaning Items">🧹 House Cleaning Items</option>
+                <option value="Travel/Transport">🚗 Travel/Transport</option>
+                <option value="Eating Outside">🍔 Eating Outside</option>
+                <option value="Miscellaneous Expenses">📦 Miscellaneous Expenses</option>
+              </select>
+            </div>
+            <div style="min-width: 150px;">
+              <select id="filter-paid-by" class="select-field" onchange="loadExpenses()">
+                <option value="All">All Payers</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <button class="btn btn-primary btn-sm" onclick="openAddExpenseModal()">+ Add New Expense</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Expense Details</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Paid By</th>
+                <th>Split Distribution</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="expenses-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         TAB 2: FLAT RENT & ELECTRICITY BILL (SINGLE A4 PRINT)
+         ========================================================= -->
+    <section id="tab-rent-bill" class="tab-content">
+      <div class="rent-tab-grid">
+        <!-- Rent & Electricity Calculator Form -->
+        <div class="rent-calculator-card">
+          <div class="card-title-lg">
+            <span>⚡ Flat Rent & Electricity Bill Calculator</span>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 18px;">
+            Set up this month's rent, meter readings (@ ₹8.00/unit), and utilities. Print strictly on a single A4 page with no spillover.
+          </p>
+
+          <form id="rent-bill-form" onsubmit="saveRentBill(event)">
+            <div class="form-group-grid-2">
+              <div class="form-group">
+                <label class="form-label">Billing Month</label>
+                <input type="month" id="rent-month-picker" class="input-field" required onchange="onRentMonthChange()" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Flat Rent Amount (₹)</label>
+                <input type="number" id="rent-flat-amount" class="input-field" value="12000" step="any" required oninput="calculateRentBill()" />
+              </div>
+            </div>
+
+            <!-- Electricity Meter Calculation Box -->
+            <div class="meter-calculation-box">
+              <div class="meter-header-label">
+                <span>⚡ BESCOM Electricity Meter Reading</span>
+                <span style="font-weight: 800;">₹8.00 / Unit</span>
+              </div>
+              <div class="meter-inputs-row">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label" style="color:#78350f;">Previous Reading</label>
+                  <input type="number" id="rent-meter-prev" class="input-field" value="1020" step="any" required oninput="calculateRentBill()" />
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label" style="color:#78350f;">Current Reading</label>
+                  <input type="number" id="rent-meter-curr" class="input-field" value="1208" step="any" required oninput="calculateRentBill()" />
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label" style="color:#78350f;">Unit Rate (₹)</label>
+                  <input type="number" id="rent-meter-rate" class="input-field" value="8.0" step="0.1" required oninput="calculateRentBill()" />
+                </div>
+              </div>
+              <div class="meter-result-callout">
+                <span>Units Consumed: <strong id="calc-units-consumed">188 Units</strong></span>
+                <span>Electricity Total: <strong id="calc-electricity-total">₹1,504.00</strong></span>
+              </div>
+            </div>
+
+            <!-- Other Flat Utilities -->
+            <div class="form-group-grid-2">
+              <div class="form-group">
+                <label class="form-label">Water Bill (₹)</label>
+                <input type="number" id="rent-water-bill" class="input-field" value="300" step="any" oninput="calculateRentBill()" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">WiFi / Internet (₹)</label>
+                <input type="number" id="rent-wifi-bill" class="input-field" value="800" step="any" oninput="calculateRentBill()" />
+              </div>
+            </div>
+
+            <div class="form-group-grid-2">
+              <div class="form-group">
+                <label class="form-label">Gas Cylinder (₹)</label>
+                <input type="number" id="rent-gas-bill" class="input-field" value="0" step="any" oninput="calculateRentBill()" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Other Maintenance Charges (₹)</label>
+                <input type="number" id="rent-other-charges" class="input-field" value="0" step="any" oninput="calculateRentBill()" />
+              </div>
+            </div>
+
+            <!-- Flat Details for Invoice -->
+            <div class="form-group-grid-2">
+              <div class="form-group">
+                <label class="form-label">Flat Address</label>
+                <input type="text" id="rent-flat-address" class="input-field" value="Flat #304, Sunshine Residency, 1st Cross, HSR Layout, Bengaluru" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Meter Number / Landlord</label>
+                <input type="text" id="rent-meter-no" class="input-field" value="BESCOM-KA-7821 (Owner: Ramesh Sharma)" />
+              </div>
+            </div>
+
+            <!-- Total Bill Summary Callout -->
+            <div class="bill-total-summary-card">
+              <div class="bill-summary-row">
+                <span>Base Flat Rent:</span>
+                <span id="bill-summary-rent">₹12,000.00</span>
+              </div>
+              <div class="bill-summary-row">
+                <span>Electricity (188 units @ ₹8):</span>
+                <span id="bill-summary-power">₹1,504.00</span>
+              </div>
+              <div class="bill-summary-row">
+                <span>Water, WiFi & Utilities:</span>
+                <span id="bill-summary-utils">₹1,100.00</span>
+              </div>
+              <div class="bill-summary-row total">
+                <span>GRAND TOTAL BILL:</span>
+                <span id="bill-summary-grand">₹14,604.00</span>
+              </div>
+              <div class="bill-summary-row" style="margin-top: 6px; font-weight: 700; color: var(--success);">
+                <span>Split Equal Per Person (<span id="bill-summary-rm-count">3</span> roommates):</span>
+                <span id="bill-summary-per-head">₹4,868.00 / head</span>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:16px;">
+              <button type="submit" class="btn btn-secondary">
+                💾 Save Bill Details
+              </button>
+              <button type="button" class="btn btn-success" onclick="postBillAsExpenses()">
+                ➕ Post as Monthly Expenses
+              </button>
+              <button type="button" class="btn btn-primary" onclick="triggerPrintBill()">
+                🖨️ Print Bill (Strict Single A4)
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Live Bill Preview Card -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h4 style="font-size: 15px; font-weight:700;">📄 Single A4 Page Invoice Preview</h4>
+            <button class="btn btn-primary btn-sm" onclick="triggerPrintBill()">🖨️ Print Single A4</button>
+          </div>
+          <div id="live-bill-preview-container">
+            <!-- Populated dynamically with preview HTML -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         TAB 3: SETTLE UP & WHO OWES WHOM (FIXED & MATHEMATICAL)
+         ========================================================= -->
+    <section id="tab-settle" class="tab-content">
+      <div class="settle-container-grid">
+        <div>
+          <div class="section-header">
+            <div>
+              <h3 class="section-title">🤝 Who Owes Whom (Simplified Debts)</h3>
+              <p style="font-size: 12.5px; color: var(--text-muted); margin-top:2px;">
+                Mathematically accurate debt settlements minimizing the number of transactions among bachelor roommates.
+              </p>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="loadSummary()">🔄 Recalculate</button>
+          </div>
+
+          <!-- Debt Cards List -->
+          <div class="debt-cards-list" id="debts-cards-container">
+            <!-- Dynamically populated -->
+          </div>
+
+          <!-- Settle All Clear Banner -->
+          <div id="settle-all-clear" style="display:none; text-align:center; padding:32px; background:var(--bg-card); border-radius:var(--radius-lg); border:1px solid var(--border-color);">
+            <div style="font-size:42px; margin-bottom:8px;">🎉</div>
+            <h4 style="font-size:18px; font-weight:800; color:var(--success);">All Bachelors are Settled Up!</h4>
+            <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">No outstanding debts for this period. Everyone has paid their exact share.</p>
+          </div>
+
+          <!-- Roommate Net Balances Breakdown -->
+          <div style="margin-top:24px;">
+            <h4 style="font-size:14px; font-weight:700; margin-bottom:12px;">📊 Individual Roommate Net Balances</h4>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Roommate</th>
+                    <th>Total Paid</th>
+                    <th>Equal Share</th>
+                    <th>Settlements</th>
+                    <th>Net Balance</th>
+                  </tr>
+                </thead>
+                <tbody id="settle-balances-table-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settlement History Section -->
+        <div>
+          <div class="settlement-history-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+              <h4 style="font-size:15px; font-weight:700;">📜 Settlement History</h4>
+              <button class="btn btn-danger-outline btn-sm" onclick="confirmResetSettlementHistory()" title="Clear all settlement records">
+                Reset History
+              </button>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+              Records of past UPI/Cash settlements paid between roommates.
+            </p>
+
+            <div class="table-responsive">
+              <table class="data-table" style="font-size:12px;">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Transaction</th>
+                    <th>Amount</th>
+                    <th>Mode</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="settlements-history-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         TAB 4: 3-YEAR MONTHLY EXPENDITURE ARCHIVE
+         ========================================================= -->
+    <section id="tab-expenditure" class="tab-content">
+      <div class="multi-year-header-bar">
+        <div>
+          <h3 class="section-title">📅 3-Year Monthly Expenditure Archive</h3>
+          <p style="font-size: 13px; color: var(--text-muted);">
+            Complete expense storage across 3+ years with month-by-month financial tracking.
+          </p>
+        </div>
+        <div class="year-selector-pills" id="archive-year-pills">
+          <!-- Dynamically populated years (e.g. 2024, 2025, 2026, 2027) -->
+        </div>
+      </div>
+
+      <!-- Year Summary Metrics -->
+      <div class="metrics-grid" style="margin-bottom:20px;">
+        <div class="metric-card primary">
+          <div>
+            <div class="metric-title">Total Spending in <span id="archive-selected-year-title">2026</span></div>
+            <div class="metric-value" id="archive-year-total">₹0</div>
+            <div class="metric-sub" id="archive-year-avg">₹0 monthly average</div>
+          </div>
+          <div class="metric-icon-box">🗓️</div>
+        </div>
+
+        <div class="metric-card success">
+          <div>
+            <div class="metric-title">Highest Spending Month</div>
+            <div class="metric-value" id="archive-highest-month">-</div>
+            <div class="metric-sub" id="archive-highest-amt">₹0</div>
+          </div>
+          <div class="metric-icon-box">🏆</div>
+        </div>
+
+        <div class="metric-card warning">
+          <div>
+            <div class="metric-title">Total Year Transactions</div>
+            <div class="metric-value" id="archive-year-count">0</div>
+            <div class="metric-sub">Logged across all bachelor categories</div>
+          </div>
+          <div class="metric-icon-box">📝</div>
+        </div>
+      </div>
+
+      <!-- Multi-Month Trend Chart -->
+      <div class="chart-card" style="margin-bottom:24px;">
+        <div class="chart-card-header">
+          <h4 class="chart-card-title">📈 12-Month Expense Trend for <span id="trend-year-label">2026</span></h4>
+          <span class="tab-badge">Full Year Trajectory</span>
+        </div>
+        <div class="chart-container-wrapper" style="height:280px;">
+          <canvas id="multiYearChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 12-Month Grid Cards -->
+      <h4 style="font-size:15px; font-weight:700; margin-bottom:14px;">🗂️ All 12 Months Breakdown</h4>
+      <div class="months-grid-12" id="months-archive-grid">
+        <!-- 12 cards populated dynamically -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- =========================================================
+       STRICT SINGLE A4 PRINTABLE BILL WRAPPER
+       (Rendered during window.print())
+       ========================================================= -->
+  <div id="printable-bill-wrapper">
+    <!-- Populated dynamically right before window.print() -->
+  </div>
+
+  <!-- =========================================================
+       MODALS
+       ========================================================= -->
+
+  <!-- Add / Edit Expense Modal -->
+  <div class="modal-overlay" id="modal-expense">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="expense-modal-title">➕ Add New Expense</h3>
+        <button class="btn-icon-circle" onclick="closeModal('modal-expense')">✕</button>
+      </div>
+      <form id="expense-form" onsubmit="handleExpenseSubmit(event)">
+        <input type="hidden" id="expense-edit-id" value="" />
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Expense Name / Title *</label>
+            <input type="text" id="exp-title" class="input-field" placeholder="e.g. D-Mart Grocery, Milk & Curd, WiFi Bill" required />
+          </div>
+
+          <div class="form-group-grid-2">
+            <div class="form-group">
+              <label class="form-label">Category *</label>
+              <select id="exp-category" class="select-field" required>
+                <option value="Flat Rent">🏠 Flat Rent</option>
+                <option value="Electricity Bill">⚡ Electricity Bill</option>
+                <option value="Water Bill">💧 Water Bill</option>
+                <option value="WiFi/Internet">📶 WiFi/Internet</option>
+                <option value="Grocery">🛒 Grocery</option>
+                <option value="Vegetables">🥦 Vegetables</option>
+                <option value="Milk">🥛 Milk</option>
+                <option value="Gas Cylinder">🔥 Gas Cylinder</option>
+                <option value="Cooking Oil & Spices">🧂 Cooking Oil & Spices</option>
+                <option value="House Cleaning Items">🧹 House Cleaning Items</option>
+                <option value="Travel/Transport">🚗 Travel/Transport</option>
+                <option value="Eating Outside">🍔 Eating Outside</option>
+                <option value="Miscellaneous Expenses" selected>📦 Miscellaneous Expenses</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Amount (₹) *</label>
+              <input type="number" id="exp-amount" class="input-field" placeholder="0.00" step="any" min="1" required />
+            </div>
+          </div>
+
+          <div class="form-group-grid-2">
+            <div class="form-group">
+              <label class="form-label">Paid By *</label>
+              <select id="exp-paid-by" class="select-field" required>
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date *</label>
+              <input type="date" id="exp-date" class="input-field" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Split Among Roommates</label>
+            <div class="split-roommates-grid" id="exp-split-checkboxes">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Notes (Optional)</label>
+            <input type="text" id="exp-notes" class="input-field" placeholder="Additional details, item list or payment remark" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-expense')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-expense">Save Expense</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Settle Up Modal -->
+  <div class="modal-overlay" id="modal-settle">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">🤝 Record Settlement Payment</h3>
+        <button class="btn-icon-circle" onclick="closeModal('modal-settle')">✕</button>
+      </div>
+      <form id="settle-form" onsubmit="handleSettleSubmit(event)">
+        <div class="modal-body">
+          <div class="form-group-grid-2">
+            <div class="form-group">
+              <label class="form-label">Who Paid? (Debtor)</label>
+              <select id="settle-payer-id" class="select-field" required></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Paid To? (Creditor)</label>
+              <select id="settle-receiver-id" class="select-field" required></select>
+            </div>
+          </div>
+
+          <div class="form-group-grid-2">
+            <div class="form-group">
+              <label class="form-label">Amount (₹) *</label>
+              <input type="number" id="settle-amount" class="input-field" step="any" min="1" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Payment Mode</label>
+              <select id="settle-method" class="select-field">
+                <option value="UPI">Google Pay / PhonePe / Paytm (UPI)</option>
+                <option value="Cash">Cash in Hand</option>
+                <option value="NetBanking">NetBanking / IMPS</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Settlement Date</label>
+            <input type="date" id="settle-date" class="input-field" required />
+          </div>
+
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Remark / Notes</label>
+            <input type="text" id="settle-notes" class="input-field" placeholder="e.g. Paid via UPI for October expenses" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-settle')">Cancel</button>
+          <button type="submit" class="btn btn-success">Confirm Settlement</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Roommate Modal -->
+  <div class="modal-overlay" id="modal-roommate">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">➕ Add New Bachelor Roommate</h3>
+        <button class="btn-icon-circle" onclick="closeModal('modal-roommate')">✕</button>
+      </div>
+      <form id="roommate-form" onsubmit="handleRoommateSubmit(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Roommate Full Name *</label>
+            <input type="text" id="rm-name" class="input-field" placeholder="e.g. Amit Kumar, Vikash Singh" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone Number or UPI ID (Optional)</label>
+            <input type="text" id="rm-phone" class="input-field" placeholder="+91 98765 00000 or username@upi" />
+          </div>
+          <div class="form-group-grid-2">
+            <div class="form-group">
+              <label class="form-label">Initials / Avatar</label>
+              <input type="text" id="rm-avatar" class="input-field" placeholder="AK" maxlength="3" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Profile Theme Color</label>
+              <input type="color" id="rm-color" class="input-field" value="#6366f1" style="height:38px; padding:2px;" />
+            </div>
+          </div>
+          <p style="font-size:12px; color:var(--text-muted);">
+            Adding a new roommate will automatically include them in future equal expense divisions and debt calculations!
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-roommate')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Roommate</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Network Wi-Fi Share & QR Code Modal -->
+  <div class="modal-overlay" id="modal-network">
+    <div class="modal-dialog" style="max-width:440px;">
+      <div class="modal-header">
+        <h3 class="modal-title">📲 Connect Roommates over Wi-Fi / LAN</h3>
+        <button class="btn-icon-circle" onclick="closeModal('modal-network')">✕</button>
+      </div>
+      <div class="modal-body" style="text-align:center;">
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
+          Shivam, Rishu, and Raj can scan this QR code or open the link on their mobile phones to view & add expenses simultaneously!
+        </p>
+        <div id="qrcode-container" style="display:flex; justify-content:center; margin:14px 0;"></div>
+        <div style="background:var(--bg-page); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:10px; margin-top:14px;">
+          <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Roommate Wi-Fi URL</div>
+          <div id="network-share-url" style="font-size:14px; font-weight:700; color:var(--primary); word-break:break-all; margin:4px 0;"></div>
+          <button class="btn btn-secondary btn-sm" onclick="copyNetworkUrl()">📋 Copy Link</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="closeModal('modal-network')">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile & Roommate Management Drawer (Side Panel) -->
+  <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+  <aside class="drawer-panel" id="drawer-panel">
+    <div class="drawer-header">
+      <h3 style="font-size:16px; font-weight:800;">⚙️ Roommates & Settings</h3>
+      <button class="btn-icon-circle" onclick="closeDrawer()">✕</button>
+    </div>
+    <div class="drawer-content">
+      <!-- Roommates List -->
+      <div class="drawer-section-title">Active Bachelors in Flat</div>
+      <div id="drawer-roommates-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+        <!-- Dynamically populated -->
+      </div>
+      <button class="btn btn-secondary btn-sm" style="width:100%; margin-bottom:24px;" onclick="openAddRoommateModal()">
+        ➕ Add New Roommate (3 to 4+)
+      </button>
+
+      <!-- Danger & Reset Operations (Requested in Prompt) -->
+      <div class="drawer-section-title">Data Management & Resets</div>
+      
+      <div class="drawer-action-card">
+        <div style="font-size:13px; font-weight:700; margin-bottom:4px;">🗑️ Reset Selected Month</div>
+        <p style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;">
+          Clear all expenses for <strong id="drawer-current-month-label">current month</strong> without affecting other months.
+        </p>
+        <button class="btn btn-danger-outline btn-sm" style="width:100%;" onclick="confirmResetMonthExpenses()">
+          Clear Month Expenses
+        </button>
+      </div>
+
+      <div class="drawer-action-card">
+        <div style="font-size:13px; font-weight:700; margin-bottom:4px;">🔄 Reset Settlement History</div>
+        <p style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;">
+          Clear recorded settlement transactions and recalculate debts from raw expenses.
+        </p>
+        <button class="btn btn-danger-outline btn-sm" style="width:100%;" onclick="confirmResetSettlementHistory()">
+          Reset Settlement History
+        </button>
+      </div>
+
+      <div class="drawer-action-card">
+        <div style="font-size:13px; font-weight:700; margin-bottom:4px;">💾 Export JSON Backup</div>
+        <p style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;">
+          Download a complete backup of all 3-year expenses, roommates, and bills.
+        </p>
+        <a href="/api/export" class="btn btn-secondary btn-sm" style="width:100%; text-align:center;">
+          Download Database Backup
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="/js/app.js"></script>
+</body>
+</html>
